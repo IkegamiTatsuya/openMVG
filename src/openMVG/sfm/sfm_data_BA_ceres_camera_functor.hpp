@@ -17,11 +17,11 @@
 namespace openMVG {
 
 /**
- * @brief Ceres functor to use a Pinhole_Intrinsic (pinhole camera model K[R[t]) and a 3D points.
+ * @brief Ceres functor to use a Pinhole_Intrinsic
  *
  *  Data parameter blocks are the following <2,3,6,3>
  *  - 2 => dimension of the residuals,
- *  - 3 => the intrinsic data block [focal, principal point x, principal point y],
+ *  - 3 => the intrinsic data block K[R|t] defined as [focal, principal point x, principal point y],
  *  - 6 => the camera extrinsic data block (camera orientation and position) [R;t],
  *         - rotation(angle axis), and translation [rX,rY,rZ,tx,ty,tz].
  *  - 3 => a 3D point data block.
@@ -275,6 +275,102 @@ struct ResidualErrorFunctor_Pinhole_Intrinsic_Radial_K3
     // Apply focal length and principal point to get the final image coordinates
     const T projected_x = principal_point_x + focal * x_d;
     const T projected_y = principal_point_y + focal * y_d;
+
+    // Compute and return the error is the difference between the predicted
+    //  and observed position
+    out_residuals[0] = projected_x - T(m_pos_2dpoint[0]);
+    out_residuals[1] = projected_y - T(m_pos_2dpoint[1]);
+
+    return true;
+  }
+
+  double m_pos_2dpoint[2]; // The 2D observation
+};
+
+/**
+* @brief Ceres functor to use a Pinhole_Rig_Intrinsic(pinhole with subpose) and a 3D point.
+*
+*  Data parameter blocks are the following <2,9,6,3>
+*  - 2 => dimension of the residuals,
+*  - 9 => the intrinsic data block [focal, principal point x, principal point y, subpose[R;t]],
+*  - 6 => the camera extrinsic data block (camera orientation and position) [R;t],
+*         - rotation(angle axis), and translation [rX,rY,rZ,tx,ty,tz].
+*  - 3 => a 3D point data block.
+*
+*/
+struct ResidualErrorFunctor_Pinhole_Rig_Intrinsic
+{
+  ResidualErrorFunctor_Pinhole_Rig_Intrinsic(const double* const pos_2dpoint)
+  {
+    m_pos_2dpoint[0] = pos_2dpoint[0];
+    m_pos_2dpoint[1] = pos_2dpoint[1];
+  }
+
+  // Enum to map intrinsics parameters between openMVG & ceres camera data parameter block.
+  enum {
+    OFFSET_FOCAL_LENGTH = 0,
+    OFFSET_PRINCIPAL_POINT_X = 1,
+    OFFSET_PRINCIPAL_POINT_Y = 2
+  };
+
+  /**
+  * @param[in] cam_K: Camera intrinsics( focal, principal point [x,y], subpose [R;t] )
+  * @param[in] cam_Rt: Camera parameterized using one block of 6 parameters [R;t]:
+  *   - 3 for rotation(angle axis), 3 for translation
+  * @param[in] pos_3dpoint
+  * @param[out] out_residuals
+  */
+  template <typename T>
+  bool operator()(
+    const T* const cam_K,
+    const T* const cam_Rt,
+    const T* const pos_3dpoint,
+    T* out_residuals) const
+  {
+    //--
+    // Apply external parameters (Pose)
+    // Pose is obtained from pose combinaison: globalPose = subpose * pose = P_s * P
+    // R R_s X + R t_s + t
+    //--
+
+    const T * cam_pose_R = cam_Rt;
+    const T * cam_pose_t = &cam_Rt[3];
+
+    const T * cam_subpose_R = &cam_K[3];
+    const T * cam_subpose_t = &cam_K[6];
+
+    T pos_rig[3];
+    T pos_proj[3];
+    T rig_trans[3];
+
+    // R R_s X
+    ceres::AngleAxisRotatePoint(cam_pose_R, pos_3dpoint, pos_rig);
+    T pos_world[3];
+    ceres::AngleAxisRotatePoint(cam_subpose_R, pos_rig, pos_proj);
+    // R t_s
+    T local_rig_trans[3];
+    ceres::AngleAxisRotatePoint(cam_pose_R, cam_subpose_t, rig_trans);
+
+    // Apply translations (R t_s + t)
+    pos_proj[0] += cam_subpose_t[0] + rig_trans[0];
+    pos_proj[1] += cam_subpose_t[1] + rig_trans[1];
+    pos_proj[2] += cam_subpose_t[2] + rig_trans[2];
+
+    // Transform the point from homogeneous to euclidean
+    const T x_u = pos_proj[0] / pos_proj[2];
+    const T y_u = pos_proj[1] / pos_proj[2];
+
+    //--
+    // Apply intrinsic parameters
+    //--
+
+    const T& focal = cam_K[OFFSET_FOCAL_LENGTH];
+    const T& principal_point_x = cam_K[OFFSET_PRINCIPAL_POINT_X];
+    const T& principal_point_y = cam_K[OFFSET_PRINCIPAL_POINT_Y];
+
+    // Apply focal length and principal point to get the final image coordinates
+    const T projected_x = principal_point_x + focal * x_u;
+    const T projected_y = principal_point_y + focal * y_u;
 
     // Compute and return the error is the difference between the predicted
     //  and observed position

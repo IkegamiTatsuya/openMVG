@@ -93,6 +93,12 @@ struct IntrinsicBase
   /// Return the intrinsic (interior & exterior) as a simplified projective projection
   virtual Mat34 get_projective_equivalent(const geometry::Pose3 & pose) const = 0;
 
+  /// Return if the intrinsic define a subpose
+  virtual bool subpose() const { return false; }
+
+  /// As no subpose exist, default consist in return an Identity transform
+  virtual geometry::Pose3 get_subpose() const { return geometry::Pose3(); }
+  
   /// Serialization out
   template <class Archive>
   void save( Archive & ar) const

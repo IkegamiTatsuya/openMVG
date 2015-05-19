@@ -65,8 +65,16 @@ struct SfM_Data
   }
 
   /// Get the pose associated to a view
-  const Pose3 GetPoseOrDie(const View * view) const
+  const Pose3 GetPoseOrDie(const View * view, const bool bCombineSubpose = true) const
   {
+    if (bCombineSubpose)
+    {
+      const IntrinsicBase * intrinsic = intrinsics.at(view->id_intrinsic).get();
+      if (intrinsic->getType() == PINHOLE_RIG_CAMERA)
+      {
+        return intrinsic->get_subpose() * poses.at(view->id_pose);
+      }
+    }
     return poses.at(view->id_pose);
   }
 };

@@ -12,6 +12,12 @@
 
 namespace openMVG {
 
+enum EView
+{
+  VIEW = 1,
+  RIG_VIEW = 2 
+};
+
 /// A view define an image by a string and unique indexes for the view, the camera intrinsic & the pose
 struct View
 {
@@ -57,8 +63,47 @@ struct View
 
     s_Img_path = stlplus::create_filespec(local_path, filename);
   }
+
+  virtual EView get_type() const { return VIEW; }
+};
+
+// Define a View that belongs to a Rigid rig
+// Define a rig index and a subrig index
+struct Rig_View : public View
+{
+  IndexT id_rig;
+  IndexT id_subrig; // subrig is also hidden in id_intrinsic
+
+  // Constructor (use unique index for the view_id)
+  Rig_View(
+    const std::string & sImgPath = "",
+    IndexT view_id = UndefinedIndexT,
+    IndexT intrinsic_id = UndefinedIndexT,
+    IndexT pose_id = UndefinedIndexT,
+    IndexT width = UndefinedIndexT, IndexT height = UndefinedIndexT,
+    IndexT rig_id = UndefinedIndexT,
+    IndexT subrig_id = UndefinedIndexT)
+    : View(sImgPath, view_id, intrinsic_id,
+        pose_id, width, height),
+        id_rig(rig_id), id_subrig(subrig_id)
+  {}
+
+  // Serialization
+  template <class Archive>
+  void serialize(Archive & ar)
+  {
+    View::serialize(ar);
+    ar(cereal::make_nvp("id_rig", id_rig),
+      cereal::make_nvp("id_subrig", id_subrig));
+  }
+  virtual EView get_type() const { return RIG_VIEW; }
 };
 
 } // namespace openMVG
+
+#include <cereal/types/polymorphic.hpp>
+
+CEREAL_REGISTER_TYPE_WITH_NAME(openMVG::Rig_View, "rig_view");
+
 
 #endif // OPENMVG_SFM_VIEW_HPP
