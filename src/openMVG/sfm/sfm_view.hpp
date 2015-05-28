@@ -105,7 +105,7 @@ struct Rig_View : public View
 
 #include <cereal/types/polymorphic.hpp>
 
-CEREAL_REGISTER_TYPE_WITH_NAME(openMVG::Rig_View, "rig_view");
+CEREAL_REGISTER_TYPE_WITH_NAME(openMVG::sfm::Rig_View, "rig_view");
 
 
 #endif // OPENMVG_SFM_VIEW_HPP
