@@ -12,6 +12,7 @@
 #include <iterator>
 
 namespace openMVG {
+namespace sfm {
 
 /// List the view indexes that have valid camera intrinsic and pose.
 static std::set<IndexT> Get_Valid_Views
@@ -68,8 +69,8 @@ static IndexT RemoveOutliers_PixelResidualError
     while (itObs != obs.end())
     {
       const View * view = sfm_data.views[itObs->first].get();
-      const Pose3 & pose = sfm_data.poses[view->id_pose];
-      const IntrinsicBase * intrinsic = sfm_data.intrinsics[view->id_intrinsic].get();
+      const geometry::Pose3 pose = sfm_data.GetPoseOrDie(view);
+      const cameras::IntrinsicBase * intrinsic = sfm_data.intrinsics[view->id_intrinsic].get();
       const Vec2 residual = intrinsic->residual(pose, iterTracks->second.X, itObs->second.x);
       if (residual.norm() > dThresholdPixel)
       {
@@ -105,16 +106,16 @@ static IndexT RemoveOutliers_AngleError
       itObs1 != obs.end(); ++itObs1)
     {
       const View * view1 = sfm_data.views[itObs1->first].get();
-      const Pose3 & pose1 = sfm_data.poses[view1->id_pose];
-      const IntrinsicBase * intrinsic1 = sfm_data.intrinsics[view1->id_intrinsic].get();
+      const geometry::Pose3 pose1 = sfm_data.GetPoseOrDie(view1);
+      const cameras::IntrinsicBase * intrinsic1 = sfm_data.intrinsics[view1->id_intrinsic].get();
 
       Observations::const_iterator itObs2 = itObs1;
       ++itObs2;
       for (; itObs2 != obs.end(); ++itObs2)
       {
         const View * view2 = sfm_data.views[itObs2->first].get();
-        const Pose3 & pose2 = sfm_data.poses[view2->id_pose];
-        const IntrinsicBase * intrinsic2 = sfm_data.intrinsics[view2->id_intrinsic].get();
+        const geometry::Pose3 pose2 = sfm_data.GetPoseOrDie(view2);
+        const cameras::IntrinsicBase * intrinsic2 = sfm_data.intrinsics[view2->id_intrinsic].get();
 
         const double angle = AngleBetweenRay(
           pose1, intrinsic1, pose2, intrinsic2,
@@ -183,7 +184,7 @@ static bool eraseObservationsWithMissingPoses(SfM_Data & sfm_data, const IndexT 
   const Landmarks & landmarks = sfm_data.structure;
   std::set<IndexT> pose_Index;
   std::transform(sfm_data.poses.begin(), sfm_data.poses.end(),
-    std::inserter(pose_Index, pose_Index.begin()), std::RetrieveKey());
+    std::inserter(pose_Index, pose_Index.begin()), stl::RetrieveKey());
 
   // For each landmark:
   //  - Check if we need to keep the observations & the track
@@ -235,6 +236,7 @@ static bool eraseUnstablePosesAndObservations(
   return remove_iteration > 0;
 }
 
-}; // namespace openMVG
+} // namespace sfm
+} // namespace openMVG
 
 #endif // OPENMVG_SFM_DATA_FILTERS_HPP

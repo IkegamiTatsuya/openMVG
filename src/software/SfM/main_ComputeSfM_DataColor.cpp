@@ -14,6 +14,8 @@
 #include <vector>
 
 using namespace openMVG;
+using namespace openMVG::image;
+using namespace openMVG::sfm;
 
 /// Find the color of the SfM_Data Landmarks/structure
 void ColorizeTracks(
@@ -47,7 +49,7 @@ void ColorizeTracks(
     std::set<IndexT> remainingTrackToColor;
     std::transform(sfm_data.GetLandmarks().begin(), sfm_data.GetLandmarks().end(),
       std::inserter(remainingTrackToColor, remainingTrackToColor.begin()),
-      RetrieveKey() );
+      stl::RetrieveKey());
 
     while( !remainingTrackToColor.empty() )
     {
@@ -79,8 +81,8 @@ void ColorizeTracks(
       std::transform(map_IndexCardinal.begin(),
         map_IndexCardinal.end(),
         std::back_inserter(vec_cardinal),
-        RetrieveValue());
-      using namespace indexed_sort;
+        stl::RetrieveValue());
+      using namespace stl::indexed_sort;
       std::vector< sort_index_packet_descend< IndexT, IndexT> > packet_vec(vec_cardinal.size());
       sort_index_helper(packet_vec, &vec_cardinal[0], 1);
 

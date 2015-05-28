@@ -11,8 +11,8 @@
 #include "openMVG/sfm/sfm_data_io.hpp"
 #include <fstream>
 
-namespace openMVG
-{
+namespace openMVG {
+namespace sfm {
 
 /// Save SfM_Data in an ASCII BAF (Bundle Adjustment File).
 // --Header
@@ -23,6 +23,10 @@ namespace openMVG
 // Intrinsic parameters [foc ppx ppy, ...]
 // Poses [angle axis, camera center]
 // Landmarks [X Y Z #observations id_intrinsic id_pose x y ...]
+//--
+//- Export also a _imgList.txt file with View filename and id_intrinsic & id_pose.
+// filename id_intrinsic id_pose
+// The ids allow to establish a link between 3D point observations & the corresponding views
 static bool Save_BAF(
   const SfM_Data & sfm_data,
   const std::string & filename,
@@ -89,9 +93,33 @@ static bool Save_BAF(
     bOk = stream.good();
     stream.close();
   }
+
+  // Export View filenames & ids as an imgList.txt file
+  {
+    const std::string sFile = stlplus::create_filespec(
+      stlplus::folder_part(filename), stlplus::basename_part(filename) + std::string("_imgList"), "txt");
+
+    stream.open(sFile.c_str());
+    if (!stream.is_open())
+      return false;
+    for (Views::const_iterator iterV = sfm_data.GetViews().begin();
+      iterV != sfm_data.GetViews().end();
+      ++ iterV)
+    {
+      const std::string sView_filename = stlplus::create_filespec(sfm_data.s_root_path,
+        iterV->second->s_Img_path);
+      stream << sView_filename
+        << ' ' << iterV->second->id_intrinsic
+        << ' ' << iterV->second->id_pose << "\n";
+    }
+    stream.flush();
+    bOk = stream.good();
+    stream.close();
+  }
   return bOk;
 }
 
+} // namespace sfm
 } // namespace openMVG
 
 #endif // OPENMVG_SFM_DATA_IO_PLY_HPP

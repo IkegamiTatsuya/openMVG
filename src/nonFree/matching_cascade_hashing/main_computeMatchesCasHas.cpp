@@ -35,8 +35,11 @@
 #include <fstream>
 
 using namespace openMVG;
+using namespace openMVG::cameras;
+using namespace openMVG::image;
 using namespace openMVG::matching;
 using namespace openMVG::robust;
+using namespace openMVG::sfm;
 using namespace std;
 
 enum eGeometricModel
@@ -212,7 +215,7 @@ int main(int argc, char **argv)
   }
 
   {
-    Timer timer;
+    system::Timer timer;
     std::cout << "\n\n - EXTRACT FEATURES - " << std::endl;
 
     Image<unsigned char> imageGray;
@@ -283,7 +286,7 @@ int main(int argc, char **argv)
       case PAIR_FROM_FILE:  std::cout << "user defined pairwise matching" << std::endl; break;
     }
 
-    Timer timer;
+    system::Timer timer;
     std::cout << "Use cascade Hashing matcher." << std::endl;
     Matcher_CascadeHashing_AllInMemory collectionMatcher(fDistRatio);
     if (collectionMatcher.loadData(*image_describer.get(), vec_fileNames, sOutDir))
@@ -336,7 +339,7 @@ int main(int argc, char **argv)
   ImageCollectionGeometricFilter collectionGeomFilter(feats_provider.get());
   const double maxResidualError = 4.0;
   {
-    Timer timer;
+    system::Timer timer;
     std::cout << std::endl << " - GEOMETRIC FILTERING - " << std::endl;
     switch (eGeometricModelToCompute)
     {

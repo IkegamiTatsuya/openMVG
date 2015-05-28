@@ -27,7 +27,11 @@
 #pragma warning( once : 4267 ) //warning C4267: 'argument' : conversion from 'size_t' to 'const int', possible loss of data
 #endif
 
-namespace openMVG{
+namespace openMVG {
+namespace sfm {
+
+using namespace openMVG::geometry;
+using namespace openMVG::cameras;
 
 SequentialSfMReconstructionEngine::SequentialSfMReconstructionEngine(
   const SfM_Data & sfm_data,
@@ -213,7 +217,7 @@ bool SequentialSfMReconstructionEngine::ChooseInitialPair(Pair & initialPairInde
       }
     }
     // sort the Pairs in descending order according their correspondences count
-    using namespace indexed_sort;
+    using namespace stl::indexed_sort;
     std::vector< sort_index_packet_descend< size_t, size_t> > packet_vec(vec_NbMatchesPerPair.size());
     sort_index_helper(packet_vec, &vec_NbMatchesPerPair[0], std::min((size_t)10, vec_NbMatchesPerPair.size()));
 
@@ -616,7 +620,7 @@ bool SequentialSfMReconstructionEngine::FindImagesWithPossibleResection
   std::set<size_t> reconstructed_trackId;
   std::transform(_sfm_data.GetLandmarks().begin(), _sfm_data.GetLandmarks().end(),
     std::inserter(reconstructed_trackId, reconstructed_trackId.begin()),
-    RetrieveKey() );
+    stl::RetrieveKey());
 
   // Estimate the image on which we could compute a resection safely
   // -> We first find the camera with the greatest number of matches
@@ -726,7 +730,7 @@ bool SequentialSfMReconstructionEngine::Resection(size_t viewIndex)
   std::set<size_t> reconstructed_trackId;
   std::transform(_sfm_data.GetLandmarks().begin(), _sfm_data.GetLandmarks().end(),
     std::inserter(reconstructed_trackId, reconstructed_trackId.begin()),
-    RetrieveKey() );
+    stl::RetrieveKey());
 
   std::set<size_t> set_trackIdForResection;
   set_intersection(set_tracksIds.begin(), set_tracksIds.end(),
@@ -1075,5 +1079,6 @@ size_t SequentialSfMReconstructionEngine::badTrackRejector(double dPrecision)
     RemoveOutliers_AngleError(_sfm_data, 2.0);
 }
 
+} // namespace sfm
 } // namespace openMVG
 

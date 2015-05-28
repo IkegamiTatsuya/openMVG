@@ -22,6 +22,8 @@
 #include "openMVG/matching/indMatch_utils.hpp"
 #include "openMVG/system/timer.hpp"
 
+#include "openMVG/graph/graph.hpp"
+#include "openMVG/stl/stl.hpp"
 #include "third_party/cmdLine/cmdLine.h"
 #include "third_party/stlplus3/filesystemSimplified/file_system.hpp"
 
@@ -29,8 +31,10 @@
 #include <fstream>
 
 using namespace openMVG;
+using namespace openMVG::cameras;
 using namespace openMVG::matching;
 using namespace openMVG::robust;
+using namespace openMVG::sfm;
 using namespace std;
 
 enum EGeometricModel
@@ -264,7 +268,7 @@ int main(int argc, char **argv)
       return EXIT_FAILURE;
     }
     // Perform the matching
-    Timer timer;
+    system::Timer timer;
     if (collectionMatcher->loadData(regions_type, vec_fileNames, sMatchesDirectory))
     {
       // From matching mode compute the pair list that have to be matched:
@@ -296,6 +300,16 @@ int main(int argc, char **argv)
   PairWiseMatchingToAdjacencyMatrixSVG(vec_fileNames.size(),
     map_PutativesMatches,
     stlplus::create_filespec(sMatchesDirectory, "PutativeAdjacencyMatrix", "svg"));
+  //-- export view pair graph once putative graph matches have been computed
+  {
+    std::set<IndexT> set_ViewIds;
+    std::transform(sfm_data.GetViews().begin(), sfm_data.GetViews().end(),
+      std::inserter(set_ViewIds, set_ViewIds.begin()), stl::RetrieveKey());
+    graph::indexedGraph putativeGraph(set_ViewIds, getPairs(map_PutativesMatches));
+    graph::exportToGraphvizData(
+      stlplus::create_filespec(sMatchesDirectory, "putative_matches"),
+      putativeGraph.g);
+  }
 
   //---------------------------------------
   // b. Geometric filtering of putative matches
@@ -315,7 +329,7 @@ int main(int argc, char **argv)
   ImageCollectionGeometricFilter collectionGeomFilter(feats_provider.get());
   const double maxResidualError = 4.0;
   {
-    Timer timer;
+    system::Timer timer;
     std::cout << std::endl << " - GEOMETRIC FILTERING - " << std::endl;
     switch (eGeometricModelToCompute)
     {
@@ -403,6 +417,17 @@ int main(int argc, char **argv)
     PairWiseMatchingToAdjacencyMatrixSVG(vec_fileNames.size(),
       map_GeometricMatches,
       stlplus::create_filespec(sMatchesDirectory, "GeometricAdjacencyMatrix", "svg"));
+
+    //-- export view pair graph once geometric filter have been done
+    {
+      std::set<IndexT> set_ViewIds;
+      std::transform(sfm_data.GetViews().begin(), sfm_data.GetViews().end(),
+        std::inserter(set_ViewIds, set_ViewIds.begin()), stl::RetrieveKey());
+      graph::indexedGraph putativeGraph(set_ViewIds, getPairs(map_GeometricMatches));
+      graph::exportToGraphvizData(
+        stlplus::create_filespec(sMatchesDirectory, "geometric_matches"),
+        putativeGraph.g);
+    }
   }
   return EXIT_SUCCESS;
 }

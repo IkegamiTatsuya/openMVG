@@ -11,6 +11,7 @@
 #include <cereal/cereal.hpp> // Serialization
 
 namespace openMVG {
+namespace sfm {
 
 enum EView
 {
@@ -99,6 +100,7 @@ struct Rig_View : public View
   virtual EView get_type() const { return RIG_VIEW; }
 };
 
+} // namespace sfm
 } // namespace openMVG
 
 #include <cereal/types/polymorphic.hpp>

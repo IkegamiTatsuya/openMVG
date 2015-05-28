@@ -15,6 +15,7 @@
 //--
 
 namespace openMVG {
+namespace sfm {
 
 /**
  * @brief Ceres functor to use a Pinhole_Intrinsic
@@ -383,7 +384,7 @@ struct ResidualErrorFunctor_Pinhole_Rig_Intrinsic
   double m_pos_2dpoint[2]; // The 2D observation
 };
 
-
+} // namespace sfm
 } // namespace openMVG
 
 #endif // OPENMVG_SFM_DATA_BA_CERES_CAMERA_FUNCTOR_HPP

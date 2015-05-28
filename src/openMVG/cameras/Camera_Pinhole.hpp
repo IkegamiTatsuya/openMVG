@@ -15,7 +15,8 @@
 
 #include <vector>
 
-namespace openMVG{
+namespace openMVG {
+namespace cameras {
 
 /// Define a classic Pinhole camera (store a K 3x3 matrix)
 ///  with intrinsic parameters defining the K calibration matrix
@@ -207,13 +208,14 @@ public:
   }
 };
 
+} // namespace cameras
 } // namespace openMVG
-
 
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/vector.hpp>
 
-CEREAL_REGISTER_TYPE_WITH_NAME(openMVG::Pinhole_Intrinsic, "pinhole");
+CEREAL_REGISTER_TYPE_WITH_NAME(openMVG::cameras::Pinhole_Intrinsic, "pinhole");
+CEREAL_REGISTER_TYPE_WITH_NAME(openMVG::cameras::Rig_Pinhole_Intrinsic, "rig_pinhole");
 
 #endif // #ifndef OPENMVG_CAMERA_PINHOLE_HPP
 

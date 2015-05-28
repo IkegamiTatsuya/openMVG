@@ -11,11 +11,13 @@
 #include <openMVG/types.hpp>
 #include <openMVG/sfm/sfm_data.hpp>
 #include <openMVG/features/regions.hpp>
+#include <openMVG/features/image_describer.hpp>
 #include "third_party/progress/progress.hpp"
 
 #include <memory>
 
-namespace openMVG{
+namespace openMVG {
+namespace sfm {
 
 /// Abstract Regions provider
 /// Allow to load and return the regions related to a view
@@ -83,6 +85,7 @@ struct Regions_Provider
 
 }; // Regions_Provider
 
+} // namespace sfm
 } // namespace openMVG
 
 #endif // OPENMVG_SFM_REGIONS_PROVIDER_HPP

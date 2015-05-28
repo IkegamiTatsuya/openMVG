@@ -9,13 +9,15 @@
 #include "openMVG/sfm/sfm.hpp"
 #include "openMVG/types.hpp"
 #include "openMVG/geometry/half_space_intersection.hpp"
-using namespace openMVG;
-using namespace openMVG::geometry;
-using namespace openMVG::geometry::halfPlane;
 
 #include <fstream>
 
 namespace openMVG {
+namespace sfm {
+
+using namespace openMVG::cameras;
+using namespace openMVG::geometry;
+using namespace openMVG::geometry::halfPlane;
 
 // Constructor
 Frustum_Filter::Frustum_Filter(const SfM_Data & sfm_data,
@@ -70,7 +72,7 @@ Pair_Set Frustum_Filter::getFrustumIntersectionPairs() const
   std::vector<IndexT> viewIds;
   viewIds.reserve(z_near_z_far_perView.size());
   std::transform(z_near_z_far_perView.begin(), z_near_z_far_perView.end(),
-    std::back_inserter(viewIds), std::RetrieveKey());
+    std::back_inserter(viewIds), stl::RetrieveKey());
 
   C_Progress_display my_progress_bar(
     viewIds.size() * (viewIds.size()-1)/2,
@@ -233,5 +235,6 @@ void Frustum_Filter::init_z_near_z_far_depth(const SfM_Data & sfm_data,
   }
 }
 
-}; // namespace openMVG
+} // namespace sfm
+} // namespace openMVG
 

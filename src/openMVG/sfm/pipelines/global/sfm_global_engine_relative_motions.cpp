@@ -12,6 +12,7 @@
 #include "openMVG/multiview/triangulation_nview.hpp"
 #include "openMVG/graph/connectedComponent.hpp"
 #include "openMVG/system/timer.hpp"
+#include "openMVG/stl/stl.hpp"
 #include "openMVG/multiview/essential.hpp"
 
 #include "third_party/progress/progress.hpp"
@@ -21,6 +22,11 @@
 #endif
 
 namespace openMVG{
+namespace sfm{
+
+using namespace openMVG::cameras;
+using namespace openMVG::geometry;
+using namespace openMVG::features;
 
 GlobalSfMReconstructionEngine_RelativeMotions::GlobalSfMReconstructionEngine_RelativeMotions(
   const SfM_Data & sfm_data,
@@ -42,8 +48,8 @@ GlobalSfMReconstructionEngine_RelativeMotions::GlobalSfMReconstructionEngine_Rel
   }
 
   // Set default motion Averaging methods
-  _eRotationAveragingMethod = globalSfM::ROTATION_AVERAGING_L2;
-  _eTranslationAveragingMethod = globalSfM::TRANSLATION_AVERAGING_L1;
+  _eRotationAveragingMethod = ROTATION_AVERAGING_L2;
+  _eTranslationAveragingMethod = TRANSLATION_AVERAGING_L1;
 }
 
 GlobalSfMReconstructionEngine_RelativeMotions::~GlobalSfMReconstructionEngine_RelativeMotions()
@@ -85,7 +91,7 @@ void GlobalSfMReconstructionEngine_RelativeMotions::SetMatchesProvider(Matches_P
 
 void GlobalSfMReconstructionEngine_RelativeMotions::SetRotationAveragingMethod
 (
-  globalSfM::ERotationAveragingMethod eRotationAveragingMethod
+  ERotationAveragingMethod eRotationAveragingMethod
 )
 {
   _eRotationAveragingMethod = eRotationAveragingMethod;
@@ -93,7 +99,7 @@ void GlobalSfMReconstructionEngine_RelativeMotions::SetRotationAveragingMethod
 
 void GlobalSfMReconstructionEngine_RelativeMotions::SetTranslationAveragingMethod
 (
-  globalSfM::ETranslationAveragingMethod eTranslationAveragingMethod
+  ETranslationAveragingMethod eTranslationAveragingMethod
 )
 {
   _eTranslationAveragingMethod = eTranslationAveragingMethod;
@@ -106,7 +112,7 @@ bool GlobalSfMReconstructionEngine_RelativeMotions::Process() {
   //-------------------
   {
     const Pair_Set pairs = _matches_provider->getPairs();
-    const std::set<IndexT> set_remainingIds = graphUtils::CleanGraph_KeepLargestBiEdge_Nodes<Pair_Set, IndexT>(pairs, _sOutDirectory);
+    const std::set<IndexT> set_remainingIds = graph::CleanGraph_KeepLargestBiEdge_Nodes<Pair_Set, IndexT>(pairs, _sOutDirectory);
     if(set_remainingIds.empty())
     {
       std::cout << "Invalid input image graph for global SfM" << std::endl;
@@ -163,6 +169,9 @@ bool GlobalSfMReconstructionEngine_RelativeMotions::Process() {
 /// Compute from relative rotations the global rotations of the camera poses
 bool GlobalSfMReconstructionEngine_RelativeMotions::Compute_Global_Rotations()
 {
+  if(_relatives_Rt.empty())
+    return false;
+
   // Convert RelativeInfo_Map to appropriate input for solving the global rotations
   // - store the relative rotations and set a weight
   using namespace openMVG::rotation_averaging;
@@ -233,14 +242,39 @@ bool GlobalSfMReconstructionEngine_RelativeMotions::Compute_Global_Rotations()
   }
 
   // Global Rotation solver:
-  using namespace openMVG::globalSfM;
-  globalSfM::ERelativeRotationInferenceMethod eRelativeRotationInferenceMethod = globalSfM::TRIPLET_ROTATION_INFERENCE_COMPOSITION_ERROR;
+  ERelativeRotationInferenceMethod eRelativeRotationInferenceMethod = TRIPLET_ROTATION_INFERENCE_COMPOSITION_ERROR;
 
-  globalSfM::GlobalSfM_Rotation_AveragingSolver rotation_averaging_solver;
+  GlobalSfM_Rotation_AveragingSolver rotation_averaging_solver;
   const bool bRotationAveraging = rotation_averaging_solver.Run(
     _eRotationAveragingMethod, eRelativeRotationInferenceMethod,
     vec_relativeRotEstimate, _map_globalR);
 
+  if (bRotationAveraging)
+  {
+    // Log input graph to the HTML report
+    if (!_sLoggingFile.empty() && !_sOutDirectory.empty())
+    {
+      // List the plausible remaining edges
+      std::set<IndexT> set_ViewIds;
+        std::transform(_sfm_data.GetViews().begin(), _sfm_data.GetViews().end(),
+          std::inserter(set_ViewIds, set_ViewIds.begin()), stl::RetrieveKey());
+      const std::string sGraph_name = "global_rotation_graph";
+      graph::indexedGraph putativeGraph(set_ViewIds, rotation_averaging_solver.GetUsedPairs());
+      graph::exportToGraphvizData(
+        stlplus::create_filespec(_sOutDirectory, sGraph_name),
+        putativeGraph.g);
+
+      using namespace htmlDocument;
+      std::ostringstream os;
+
+      os << "<br>" << sGraph_name << "<br>"
+         << "<img src=\""
+         << stlplus::create_filespec(_sOutDirectory, sGraph_name, "svg")
+         << "\" height=\"600\">\n";
+
+      _htmlDocStream->pushInfo(os.str());
+    }
+  }
   return bRotationAveraging;
 }
 
@@ -248,7 +282,7 @@ bool GlobalSfMReconstructionEngine_RelativeMotions::Compute_Global_Rotations()
 bool GlobalSfMReconstructionEngine_RelativeMotions::Compute_Global_Translations()
 {
   // Translation averaging (compute translations & update them to a global common coordinates system)
-  globalSfM::GlobalSfM_Translation_AveragingSolver translation_averaging_solver;
+  GlobalSfM_Translation_AveragingSolver translation_averaging_solver;
   const bool bTranslationAveraging = translation_averaging_solver.Run(
     _eTranslationAveragingMethod,
     _sfm_data,
@@ -331,7 +365,7 @@ bool GlobalSfMReconstructionEngine_RelativeMotions::Compute_Initial_Structure()
   {
     IndexT countRemoved = 0;
 
-    openMVG::Timer timer;
+    openMVG::system::Timer timer;
 
     const IndexT trackCountBefore = _sfm_data.GetLandmarks().size();
     SfM_Data_Structure_Computation_Blind structure_estimator(true);
@@ -559,6 +593,29 @@ void GlobalSfMReconstructionEngine_RelativeMotions::Compute_Relative_Rotations(R
       //  relativePose_info.relativePose.translation());
     }
   }
+  // Log input graph to the HTML report
+  if (!_sLoggingFile.empty() && !_sOutDirectory.empty())
+  {
+    std::set<IndexT> set_ViewIds;
+      std::transform(_sfm_data.GetViews().begin(), _sfm_data.GetViews().end(),
+        std::inserter(set_ViewIds, set_ViewIds.begin()), stl::RetrieveKey());
+    graph::indexedGraph putativeGraph(set_ViewIds, getPairs(_matches_provider->_pairWise_matches));
+    graph::exportToGraphvizData(
+      stlplus::create_filespec(_sOutDirectory, "input_largest_cc_relative_motions_graph"),
+      putativeGraph.g);
+
+    using namespace htmlDocument;
+    std::ostringstream os;
+
+    os << "<br>" << "input_largest_cc_relative_motions_graph" << "<br>"
+       << "<img src=\""
+       << stlplus::create_filespec(_sOutDirectory, "input_largest_cc_relative_motions_graph", "svg")
+       << "\" height=\"600\">\n";
+
+    _htmlDocStream->pushInfo(os.str());
+  }
 }
 
+} // namespace sfm
 } // namespace openMVG
+
