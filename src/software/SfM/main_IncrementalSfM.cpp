@@ -9,7 +9,7 @@
 
 #include "openMVG/sfm/sfm.hpp"
 #include "openMVG/system/timer.hpp"
-#include "software/SfM/io_regions_type.hpp"
+
 using namespace openMVG;
 using namespace openMVG::cameras;
 using namespace openMVG::sfm;
