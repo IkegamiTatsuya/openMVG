@@ -24,7 +24,8 @@ using namespace openMVG::matching;
 class ImageCollectionGeometricFilter
 {
   public:
-    ImageCollectionGeometricFilter() : _feat_provider(NULL)
+  ImageCollectionGeometricFilter()
+    : _feat_provider(NULL)
   {
   }
 
@@ -35,9 +36,9 @@ class ImageCollectionGeometricFilter
   /// Filter all putative correspondences according the templated geometric filter
   template <typename GeometricFilterT>
   void Filter(
-    const GeometricFilterT & geometricFilter,  // geometric filter functor
-    PairWiseMatches & map_PutativesMatchesPair, // putative correspondences to filter
-    PairWiseMatches & map_GeometricMatches,
+    const GeometricFilterT & geometricFilter,   // geometric filter functor
+    PairWiseMatches & map_PutativesMatchesPair, // input putative correspondences to filter
+    PairWiseMatches & map_GeometricMatches,     // output geometric filtered correspondences
     const std::vector<std::pair<size_t, size_t> > & vec_imagesSize) const
   {
     C_Progress_display my_progress_bar( map_PutativesMatchesPair.size() );
@@ -58,7 +59,7 @@ class ImageCollectionGeometricFilter
       const features::PointFeatures & kpSetI = _feat_provider->getFeatures(iIndex);
       const features::PointFeatures & kpSetJ = _feat_provider->getFeatures(jIndex);
 
-      //-- Copy point to array in order to estimate fundamental matrix :
+      //-- Copy point to array in order to robustly estimate a geometric model:
       const size_t n = vec_PutativeMatches.size();
       Mat xI(2,n), xJ(2,n);
 
@@ -72,18 +73,18 @@ class ImageCollectionGeometricFilter
       //-- Apply the geometric filter
       {
         std::vector<size_t> vec_inliers;
-        geometricFilter.Fit(
+        const bool bRobustEstimation = geometricFilter.Fit(
           iter->first,
           xI, vec_imagesSize[iIndex],
           xJ, vec_imagesSize[jIndex],
           vec_inliers);
 
-        if(!vec_inliers.empty())
+        if (bRobustEstimation)
         {
           std::vector<IndMatch> vec_filteredMatches;
           vec_filteredMatches.reserve(vec_inliers.size());
-          for (size_t i=0; i < vec_inliers.size(); ++i)  {
-            vec_filteredMatches.push_back( vec_PutativeMatches[vec_inliers[i]] );
+          for ( const size_t & index : vec_inliers)  {
+            vec_filteredMatches.push_back( vec_PutativeMatches[index] );
           }
 #ifdef OPENMVG_USE_OPENMP
   #pragma omp critical

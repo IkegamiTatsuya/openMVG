@@ -194,6 +194,12 @@ INSTALL(
 # ==============================================================================
 OPTION(OpenMVG_USE_OPENCV "Build or not opencv+openMVG samples programs" OFF)
 
+# ==============================================================================
+# Since OpenCV 3, SIFT is no longer in the default modules. See
+# https://github.com/itseez/opencv_contrib for more informations.
+# Enable this to be able to use OpenCV SIFT in main_ComputeFeatures_OpenCV.
+# ==============================================================================
+OPTION(OpenMVG_USE_OCVSIFT "Add or not OpenCV SIFT in available features" OFF)
 
 # ==============================================================================
 # Enable cmake UNIT TEST framework
@@ -266,6 +272,7 @@ SET(OpenMVG_INCLUDE_DIRS
   ${JPEG_INCLUDE_DIR}
   ${PNG_INCLUDE_DIRS}
   ${TIFF_INCLUDE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/dependencies
   ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/cereal/include
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lemon
   ${PROJECT_BINARY_DIR}/third_party/lemon
