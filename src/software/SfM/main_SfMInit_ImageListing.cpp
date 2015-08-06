@@ -5,7 +5,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #include "openMVG/exif/exif_IO_EasyExif.hpp"
 
-#include "openMVG_Samples/sensorWidthDatabase/ParseDatabase.hpp"
+#include "openMVG/exif/sensor_width_database/ParseDatabase.hpp"
 
 #include "openMVG/image/image.hpp"
 #include "openMVG/stl/split.hpp"
@@ -71,12 +71,12 @@ int main(int argc, char **argv)
 
   bool b_Group_camera_model = true;
 
-  double focalPixPermm = -1.0;
+  double focal_pixels = -1.0;
 
   cmd.add( make_option('i', sImageDir, "imageDirectory") );
   cmd.add( make_option('d', sfileDatabase, "sensorWidthDatabase") );
   cmd.add( make_option('o', sOutputDir, "outputDirectory") );
-  cmd.add( make_option('f', focalPixPermm, "focal") );
+  cmd.add( make_option('f', focal_pixels, "focal") );
   cmd.add( make_option('k', sKmatrix, "intrinsics") );
   cmd.add( make_option('c', i_User_camera_model, "camera_model") );
   cmd.add( make_option('g', b_Group_camera_model, "group_camera_model") );
@@ -109,7 +109,7 @@ int main(int argc, char **argv)
             << "--imageDirectory " << sImageDir << std::endl
             << "--sensorWidthDatabase " << sfileDatabase << std::endl
             << "--outputDirectory " << sOutputDir << std::endl
-            << "--focal " << focalPixPermm << std::endl
+            << "--focal " << focal_pixels << std::endl
             << "--intrinsics " << sKmatrix << std::endl
             << "--camera_model " << i_User_camera_model << std::endl
             << "--group_camera_model " << b_Group_camera_model << std::endl;
@@ -147,7 +147,7 @@ int main(int argc, char **argv)
     return EXIT_FAILURE;
   }
 
-  if (sKmatrix.size() > 0 && focalPixPermm != -1.0)
+  if (sKmatrix.size() > 0 && focal_pixels != -1.0)
   {
     std::cerr << "\nCannot combine -f and -k options" << std::endl;
     return EXIT_FAILURE;
@@ -158,7 +158,9 @@ int main(int argc, char **argv)
   {
     if ( !parseDatabase( sfileDatabase, vec_database ) )
     {
-      std::cerr << "\nInvalid input database" << std::endl;
+      std::cerr
+       << "\nInvalid input database: " << sfileDatabase
+       << ", please specify a valid file." << std::endl;
       return EXIT_FAILURE;
     }
   }
@@ -186,30 +188,33 @@ int main(int argc, char **argv)
       continue; // image cannot be opened
 
     ImageHeader imgHeader;
-    if (openMVG::image::ReadImageHeader(sImageFilename.c_str(), &imgHeader))
-    {
-      width = imgHeader.width;
-      height = imgHeader.height;
-      ppx = width / 2.0;
-      ppy = height / 2.0;
-    }
-    else
+    if (!openMVG::image::ReadImageHeader(sImageFilename.c_str(), &imgHeader))
       continue; // image cannot be read
+
+    width = imgHeader.width;
+    height = imgHeader.height;
+    ppx = width / 2.0;
+    ppy = height / 2.0;
 
     std::unique_ptr<Exif_IO> exifReader(new Exif_IO_EasyExif());
     exifReader->open( sImageFilename );
 
-    // Consider the case where focal is provided manually
-    if ( !exifReader->doesHaveExifInfo() || focalPixPermm != -1)
+    const bool bHaveValidExifMetadata =
+      exifReader->doesHaveExifInfo()
+      && !exifReader->getBrand().empty()
+      && !exifReader->getModel().empty();
+
+    // Consider the case where the focal is provided manually
+    if ( !bHaveValidExifMetadata || focal_pixels != -1)
     {
       if (sKmatrix.size() > 0) // Known user calibration K matrix
       {
         if (!checkIntrinsicStringValidity(sKmatrix, focal, ppx, ppy))
           focal = -1.0;
       }
-      else // User provided focal lenght value
-        if (focalPixPermm != -1 )
-        focal = focalPixPermm;
+      else // User provided focal length value
+        if (focal_pixels != -1 )
+          focal = focal_pixels;
     }
     else // If image contains meta data
     {
@@ -278,7 +283,7 @@ int main(int argc, char **argv)
     }
     else
     {
-      // Add the intrinsic to the sfm_container
+      // Add the defined intrinsic to the sfm_container
       intrinsics[v.id_intrinsic] = intrinsic;
     }
 
@@ -336,17 +341,25 @@ int main(int argc, char **argv)
       ++iterView)
     {
       View * v = iterView->second.get();
-      v->id_intrinsic = old_new_reindex[v->id_intrinsic];
+      // Update the Id only if a corresponding index exists
+      if (old_new_reindex.count(v->id_intrinsic))
+        v->id_intrinsic = old_new_reindex[v->id_intrinsic];
     }
   }
 
   // Store SfM_Data views & intrinsic data
-  if (Save(
+  if (!Save(
     sfm_data,
     stlplus::create_filespec( sOutputDir, "sfm_data.json" ).c_str(),
-    ESfM_Data(VIEWS|INTRINSICS))
-    )
+    ESfM_Data(VIEWS|INTRINSICS)))
+  {
+    return EXIT_FAILURE;
+  }
+
+  std::cout << std::endl
+    << "SfMInit_ImageListing report:\n"
+    << "listed #File(s): " << vec_image.size() << "\n"
+    << "usable #File(s) listed in sfm_data: " << sfm_data.GetViews().size() << std::endl;
+
   return EXIT_SUCCESS;
-    else
-  return EXIT_FAILURE;
 }

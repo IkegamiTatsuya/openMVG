@@ -9,6 +9,7 @@
 
 #include "openMVG/sfm/pipelines/global/sfm_global_engine_relative_motions.hpp"
 #include "openMVG/system/timer.hpp"
+
 using namespace openMVG;
 using namespace openMVG::sfm;
 
