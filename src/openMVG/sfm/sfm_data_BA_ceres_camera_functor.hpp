@@ -331,7 +331,7 @@ struct ResidualErrorFunctor_Pinhole_Rig_Intrinsic
     //--
     // Apply external parameters (Pose)
     // Pose is obtained from pose combinaison: globalPose = subpose * pose = P_s * P
-    // R R_s X + R t_s + t
+    // R_s R X + R_s t + t_s
     //--
 
     const T * cam_pose_R = cam_Rt;
@@ -344,18 +344,23 @@ struct ResidualErrorFunctor_Pinhole_Rig_Intrinsic
     T pos_proj[3];
     T rig_trans[3];
 
-    // R R_s X
+    //--
+    // Apply rotations:
+    // R_s R X
     ceres::AngleAxisRotatePoint(cam_pose_R, pos_3dpoint, pos_rig);
     T pos_world[3];
     ceres::AngleAxisRotatePoint(cam_subpose_R, pos_rig, pos_proj);
-    // R t_s
-    T local_rig_trans[3];
-    ceres::AngleAxisRotatePoint(cam_pose_R, cam_subpose_t, rig_trans);
+    //--
 
-    // Apply translations (R t_s + t)
+    //--
+    // Apply translations:
+    // R_s t + t_s
+    T local_rig_trans[3];
+    ceres::AngleAxisRotatePoint(cam_subpose_R, cam_pose_t, rig_trans);
     pos_proj[0] += cam_subpose_t[0] + rig_trans[0];
     pos_proj[1] += cam_subpose_t[1] + rig_trans[1];
     pos_proj[2] += cam_subpose_t[2] + rig_trans[2];
+    //--
 
     // Transform the point from homogeneous to euclidean
     const T x_u = pos_proj[0] / pos_proj[2];
