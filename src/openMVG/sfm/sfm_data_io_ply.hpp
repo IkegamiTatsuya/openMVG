@@ -39,7 +39,6 @@ static bool Save_PLY(
     {
       for (const auto & view : sfm_data.GetViews())
       {
-        const IndexT view_id = view.second->id_view;
         view_with_pose_count += sfm_data.IsPoseAndIntrinsicDefined(view.second.get());
       }
     }
@@ -61,7 +60,6 @@ static bool Save_PLY(
       {
         for (const auto & view : sfm_data.GetViews())
         {
-          const IndexT view_id = view.second->id_view;
           if (sfm_data.IsPoseAndIntrinsicDefined(view.second.get()))
           {
             const geometry::Pose3 pose = sfm_data.GetPoseOrDie(view.second.get());
